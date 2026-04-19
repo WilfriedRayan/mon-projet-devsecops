@@ -1,11 +1,10 @@
-@'
 name: DevSecOps CI
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "master", "main", "develop" ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ "master", "main", "develop" ]
 
 jobs:
   security-pipeline:
@@ -56,4 +55,3 @@ jobs:
       - name: Conftest policy check
         run: |
           docker run --rm -v "$PWD:/project" -w /project openpolicyagent/conftest test k8s/deployment.yaml --policy policy/
-'@ | Set-Content .\.github\workflows\ci.yml
