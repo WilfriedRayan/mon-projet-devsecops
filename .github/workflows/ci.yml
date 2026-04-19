@@ -1,0 +1,59 @@
+@'
+name: DevSecOps CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  security-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install app dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install yamllint
+        run: |
+          pip install yamllint
+
+      - name: Lint Kubernetes YAML
+        run: |
+          yamllint k8s/
+
+      - name: Build Docker image
+        run: |
+          docker build -t flask-devsecops:${{ github.sha }} .
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg lsb-release apt-transport-https
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Trivy FS scan
+        run: |
+          trivy fs --severity HIGH,CRITICAL --exit-code 0 .
+
+      - name: Trivy image scan
+        run: |
+          trivy image --severity HIGH,CRITICAL --exit-code 0 flask-devsecops:${{ github.sha }}
+
+      - name: Conftest policy check
+        run: |
+          docker run --rm -v "$PWD:/project" -w /project openpolicyagent/conftest test k8s/deployment.yaml --policy policy/
+'@ | Set-Content .\.github\workflows\ci.yml
